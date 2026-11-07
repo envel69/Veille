@@ -1,0 +1,11 @@
+services:
+  atelier-veille:
+    build: .
+    container_name: atelier-veille
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
