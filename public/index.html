@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier de veille</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+/* Plan : bureau d'analyste. Colonne gauche = saisie du résumé, colonne droite = rapport généré et PDF. */
+:root {
+  --ink: #16202b;
+  --muted: #5b6774;
+  --paper: #eef1f4;
+  --surface: #ffffff;
+  --line: #d6dce3;
+  --accent: #1d4f7a;
+  --accent-ink: #ffffff;
+  --accent-soft: #e3edf6;
+  --mark: #b8731f;
+  --ok: #2f7a4f;
+  --danger: #a83a32;
+  --display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #e4e9ee; --muted: #9aa6b2; --paper: #0e141a; --surface: #161f28; --line: #2a3643;
+    --accent: #7eb0de; --accent-ink: #0b1622; --accent-soft: #1c2c3b; --mark: #e0a458;
+    --ok: #6cc08f; --danger: #e8817a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #e4e9ee; --muted: #9aa6b2; --paper: #0e141a; --surface: #161f28; --line: #2a3643;
+  --accent: #7eb0de; --accent-ink: #0b1622; --accent-soft: #1c2c3b; --mark: #e0a458;
+  --ok: #6cc08f; --danger: #e8817a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 24px 20px 48px; display: grid; gap: 20px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; }
+.eyebrow { font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--mark); margin: 0 0 4px; }
+h1 { font-family: var(--display); font-weight: 600; font-size: 30px; line-height: 1.15; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 20px; align-items: start; }
+@media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 16px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.panel-head h2 { font-family: var(--display); font-size: 20px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 10px; }
+.step-no { font-family: var(--mono); font-size: 12px; font-weight: 500; width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--accent); color: var(--accent-ink); }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 520px) { .fields { grid-template-columns: 1fr; } }
+.field { display: grid; gap: 5px; }
+.field.full { grid-column: 1 / -1; }
+label, .label { font-size: 13px; font-weight: 600; color: var(--ink); }
+.hint { font-size: 12.5px; color: var(--muted); font-weight: 400; }
+input[type="text"], select, textarea {
+  font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 7px; padding: 9px 11px; width: 100%;
+}
+textarea { min-height: 300px; resize: vertical; line-height: 1.55; font-size: 14.5px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.textarea-meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; cursor: pointer; display: grid; gap: 1px; font-weight: 600; background: var(--paper); }
+.seg label span { font-weight: 400; font-size: 12px; color: var(--muted); }
+.seg input:checked + label { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn { font: inherit; font-weight: 600; border-radius: 8px; padding: 11px 16px; border: 1px solid transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-ghost:hover { background: var(--paper); }
+.btn-small { padding: 6px 10px; font-size: 13px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; filter: none; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.chip { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.chip.example { color: var(--mark); border-color: var(--mark); }
+.chip.ready { color: var(--ok); border-color: var(--ok); }
+.chip.busy { color: var(--accent); border-color: var(--accent); }
+.notice { border-radius: 8px; padding: 10px 12px; font-size: 13.5px; border: 1px solid var(--line); background: var(--paper); }
+.notice.error { border-color: var(--danger); color: var(--danger); }
+.hidden { display: none !important; }
+
+/* Contenu attendu (état initial) */
+.outline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--line); }
+.outline li { display: grid; grid-template-columns: 34px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.outline .n { font-family: var(--mono); font-size: 12px; color: var(--mark); padding-top: 2px; }
+.outline strong { display: block; font-weight: 600; }
+.outline span.d { font-size: 13px; color: var(--muted); }
+
+/* Progression */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.steps li { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.steps .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); }
+.steps li.active { color: var(--ink); font-weight: 600; }
+.steps li.active .dot { border-color: var(--accent); background: var(--accent-soft); animation: pulse 1.2s ease-in-out infinite; }
+.steps li.done { color: var(--ink); }
+.steps li.done .dot { border-color: var(--ok); background: var(--ok); }
+.steps li.fail .dot { border-color: var(--danger); background: var(--danger); }
+.steps .count { font-family: var(--mono); font-size: 12px; color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+@keyframes pulse { 50% { transform: scale(1.25); } }
+@media (prefers-reduced-motion: reduce) { .steps li.active .dot { animation: none; } }
+.bar { height: 6px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s ease; }
+
+/* Résultat */
+.result-card { border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 14px; background: var(--paper); }
+.stats { display: flex; gap: 22px; flex-wrap: wrap; }
+.stat b { display: block; font-family: var(--display); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat span { font-size: 12.5px; color: var(--muted); }
+.file-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.file-icon { width: 38px; height: 46px; border-radius: 4px; background: var(--surface); border: 1px solid var(--line); position: relative; display: grid; place-items: end center; padding-bottom: 6px; font-family: var(--mono); font-size: 9.5px; font-weight: 500; color: var(--danger); flex: none; }
+.file-icon::before { content: ""; position: absolute; top: -1px; right: -1px; width: 11px; height: 11px; background: var(--paper); border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.file-name { font-family: var(--mono); font-size: 13px; word-break: break-all; }
+
+/* Aperçu du rapport */
+.preview { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); max-height: 760px; overflow: auto; }
+.doc { padding: 28px 30px 36px; max-width: 72ch; margin: 0 auto; font-size: 14.5px; }
+.doc .cover { border-bottom: 2px solid var(--accent); padding-bottom: 16px; margin-bottom: 20px; }
+.doc .cover .eyebrow { margin-bottom: 8px; }
+.doc h3.title { font-family: var(--display); font-size: 26px; line-height: 1.2; font-weight: 700; margin: 0 0 6px; text-wrap: balance; }
+.doc .subtitle { color: var(--muted); margin: 0 0 10px; font-size: 15.5px; }
+.doc .kw { display: flex; flex-wrap: wrap; gap: 6px; }
+.doc .kw span { font-size: 12px; background: var(--accent-soft); color: var(--accent); padding: 2px 8px; border-radius: 4px; }
+.doc h4 { font-family: var(--display); font-size: 19px; font-weight: 600; margin: 26px 0 8px; display: flex; gap: 10px; align-items: baseline; text-wrap: balance; }
+.doc h4 .num { font-family: var(--mono); font-size: 12.5px; color: var(--mark); font-weight: 500; }
+.doc h5 { font-size: 14.5px; font-weight: 700; color: var(--accent); margin: 16px 0 4px; }
+.doc p { margin: 0 0 10px; }
+.doc ul { margin: 0 0 10px; padding-left: 20px; }
+.doc li { margin-bottom: 4px; }
+.doc .box { background: var(--accent-soft); border-radius: 8px; padding: 12px 14px; margin: 12px 0; }
+.doc .box strong { display: block; margin-bottom: 4px; color: var(--accent); }
+.doc .keep { border-left: 3px solid var(--mark); padding: 4px 0 4px 12px; font-style: italic; margin: 12px 0; }
+.doc table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 6px 0 12px; }
+.doc th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 2px solid var(--line); padding: 6px 8px; }
+.doc td { border-bottom: 1px solid var(--line); padding: 7px 8px; vertical-align: top; }
+.doc .src { white-space: pre-wrap; background: var(--paper); border-radius: 8px; padding: 12px 14px; font-size: 13.5px; }
+.prio { font-size: 11.5px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+.prio.haute { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+.prio.moyenne { background: color-mix(in srgb, var(--mark) 18%, transparent); color: var(--mark); }
+.prio.basse { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+footer.foot { font-size: 12.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Résumé de veille → rapport PDF détaillé</p>
+      <h1>Atelier de veille</h1>
+    </div>
+    <p class="lede">Écrivez votre résumé en quelques lignes. Claude le développe en un rapport structuré (synthèse, analyses, enjeux, recommandations, glossaire) que vous récupérez en PDF.</p>
+  </header>
+
+  <div class="grid">
+    <!-- Saisie -->
+    <section class="panel" aria-labelledby="h-input">
+      <div class="panel-head">
+        <h2 id="h-input"><span class="step-no">1</span>Votre résumé</h2>
+        <div class="actions">
+          <span id="exampleChip" class="chip example">Exemple</span>
+          <button id="clearBtn" class="btn btn-ghost btn-small" type="button">Vider</button>
+        </div>
+      </div>
+
+      <div class="fields">
+        <div class="field full">
+          <label for="fTitle">Titre du rapport <span class="hint">(facultatif, sinon proposé par Claude)</span></label>
+          <input id="fTitle" type="text" placeholder="Ex. : Veille batteries sodium-ion, novembre 2026">
+        </div>
+        <div class="field">
+          <label for="fTheme">Thème ou domaine</label>
+          <input id="fTheme" type="text" placeholder="Ex. : énergie, réglementation, concurrence">
+        </div>
+        <div class="field">
+          <label for="fAuthor">Auteur(s)</label>
+          <input id="fAuthor" type="text" placeholder="Ex. : Jeje, Max, Vel">
+        </div>
+        <div class="field full">
+          <label for="fAudience">Destinataires</label>
+          <select id="fAudience">
+            <option value="direction">Direction : enjeux, décisions, impacts</option>
+            <option value="technique">Équipe technique : mécanismes et détails</option>
+            <option value="general">Tous publics : pédagogique, avec définitions</option>
+          </select>
+        </div>
+        <div class="field full">
+          <span class="label" id="lLevel">Niveau de détail du PDF</span>
+          <div class="seg" role="radiogroup" aria-labelledby="lLevel">
+            <input type="radio" name="level" id="lv-standard" value="standard">
+            <label for="lv-standard">Standard<span>4 parties développées</span></label>
+            <input type="radio" name="level" id="lv-approfondi" value="approfondi" checked>
+            <label for="lv-approfondi">Approfondi<span>6 parties développées</span></label>
+            <input type="radio" name="level" id="lv-complet" value="complet">
+            <label for="lv-complet">Très complet<span>8 parties développées</span></label>
+          </div>
+        </div>
+        <div class="field full">
+          <label for="fSummary">Résumé de veille</label>
+          <textarea id="fSummary" placeholder="Collez ou écrivez ici vos notes : faits marquants, annonces, chiffres, sources, impressions…"></textarea>
+          <div class="textarea-meta">
+            <span id="wordCount">0 mot</span>
+            <span>Points en vrac, phrases courtes ou paragraphes : tout fonctionne.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="genBtn" class="btn btn-primary" type="button">Générer le rapport détaillé</button>
+        <button id="cancelBtn" class="btn btn-ghost hidden" type="button">Annuler</button>
+        <span id="modelInfo" class="hint"></span>
+      </div>
+      <div id="inputMsg" class="notice error hidden" role="alert"></div>
+    </section>
+
+    <!-- Résultat -->
+    <section class="panel" aria-labelledby="h-output">
+      <div class="panel-head">
+        <h2 id="h-output"><span class="step-no">2</span>Rapport PDF</h2>
+        <span id="statusChip" class="chip">En attente</span>
+      </div>
+
+      <!-- État vide -->
+      <div id="stateEmpty" class="grid-gap">
+        <p style="margin:0 0 12px;color:var(--muted)">Après la génération, votre PDF apparaît ici, prêt à télécharger. Il contient :</p>
+        <ol class="outline">
+          <li><span class="n">00</span><div><strong>Page de garde et sommaire</strong><span class="d">Titre, thème, auteurs, date, mots-clés, sommaire paginé.</span></div></li>
+          <li><span class="n">01</span><div><strong>Synthèse exécutive</strong><span class="d">L'essentiel en une page, avec les points clés.</span></div></li>
+          <li><span class="n">02</span><div><strong>Parties d'analyse développées</strong><span class="d">Contexte, mécanismes, enjeux, impacts et scénarios, chacune avec sous-parties, encadré et « à retenir ».</span></div></li>
+          <li><span class="n">03</span><div><strong>Acteurs, risques et opportunités</strong><span class="d">Qui est concerné et ce que cela change.</span></div></li>
+          <li><span class="n">04</span><div><strong>Recommandations</strong><span class="d">Actions classées par priorité et horizon.</span></div></li>
+          <li><span class="n">05</span><div><strong>Questions ouvertes, points à vérifier, glossaire, conclusion</strong><span class="d">Plus votre résumé d'origine en annexe.</span></div></li>
+        </ol>
+      </div>
+
+      <!-- Génération en cours -->
+      <div id="stateBusy" class="hidden" style="display:grid;gap:14px">
+        <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
+        <ol id="stepsList" class="steps"></ol>
+        <p class="hint" style="margin:0">Comptez une à trois minutes selon le niveau de détail. Gardez la page ouverte.</p>
+      </div>
+
+      <!-- Résultat prêt -->
+      <div id="stateReady" class="hidden" style="display:grid;gap:16px">
+        <div class="result-card">
+          <div class="file-line">
+            <div class="file-icon" aria-hidden="true">PDF</div>
+            <div style="flex:1;min-width:180px">
+              <div class="file-name" id="fileName">rapport.pdf</div>
+              <div class="hint" id="fileMeta"></div>
+            </div>
+          </div>
+          <div class="stats">
+            <div class="stat"><b id="stPages">0</b><span>pages</span></div>
+            <div class="stat"><b id="stWords">0</b><span>mots dans le rapport</span></div>
+            <div class="stat"><b id="stRatio">×0</b><span>plus long que le résumé</span></div>
+          </div>
+          <div class="actions">
+            <button id="dlBtn" class="btn btn-primary" type="button">Télécharger le PDF</button>
+            <button id="openBtn" class="btn btn-ghost" type="button">Ouvrir dans un onglet</button>
+            <button id="regenBtn" class="btn btn-ghost" type="button">Régénérer</button>
+          </div>
+          <div id="dlMsg" class="notice hidden" role="status"></div>
+        </div>
+        <div>
+          <p class="label" style="margin:0 0 8px">Aperçu du contenu</p>
+          <div class="preview"><div id="previewDoc" class="doc"></div></div>
+        </div>
+      </div>
+
+      <div id="outputMsg" class="notice error hidden" role="alert"></div>
+    </section>
+  </div>
+
+  <footer class="foot">Version locale (localhost). Le rapport est rédigé par Claude à partir de votre résumé et de connaissances générales, sans recherche sur le web. Les chiffres, dates et faits précis sont listés dans « Points à vérifier » : relisez avant diffusion.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- Construction du PDF (fonction pure, testable) -->
+<script id="pdf-builder">
+function pdfSanitize(s) {
+  return String(s == null ? "" : s)
+    .normalize("NFC")
+    .replace(/[‘’‚′ʼ]/g, "'")
+    .replace(/[“”„″]/g, '"')
+    .replace(/[–—−‐‑]/g, "-")
+    .replace(/…/g, "...")
+    .replace(/œ/g, "oe").replace(/Œ/g, "OE")
+    .replace(/€/g, "EUR")
+    .replace(/[      ]/g, " ")
+    .replace(/→/g, "->").replace(/←/g, "<-")
+    .replace(/≥/g, ">=").replace(/≤/g, "<=")
+    .replace(/[•●▪]/g, "-")
+    .replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g, "");
+}
+
+function buildReportPdf(R, M, JsPDF) {
+  const doc = new JsPDF({ unit: "mm", format: "a4", compress: true });
+  const W = 210, H = 297, ML = 22, MR = 22, MT = 26, MB = 24, CW = W - ML - MR;
+  const C = {
+    accent: [29, 79, 122], ink: [22, 32, 43], muted: [91, 103, 116], line: [214, 220, 227],
+    tint: [231, 239, 247], mark: [184, 115, 31], white: [255, 255, 255], pale: [196, 216, 235],
+    haute: [168, 58, 50], moyenne: [184, 115, 31], basse: [47, 122, 79]
+  };
+  const S = pdfSanitize;
+  const toc = [];
+  let y = MT;
+  const PT = 0.3528;
+  const lineH = (size, k) => size * PT * (k || 1.45);
+
+  function font(style, size, color, family) {
+    doc.setFont(family || "helvetica", style);
+    doc.setFontSize(size);
+    doc.setTextColor.apply(doc, color);
+  }
+  function newPage() { doc.addPage(); y = MT; }
+  function ensure(h) { if (y + h > H - MB) newPage(); }
+  function lines(text, size, width, style, family) {
+    font(style || "normal", size, C.ink, family);
+    return doc.splitTextToSize(S(text), width);
+  }
+
+  function para(text, o) {
+    o = o || {};
+    const size = o.size || 10.5, x = o.x || ML, width = o.width || CW, h = lineH(size, o.k);
+    font(o.style || "normal", size, o.color || C.ink, o.family);
+    const ls = doc.splitTextToSize(S(text), width);
+    ls.forEach(function (ln) {
+      ensure(h);
+      font(o.style || "normal", size, o.color || C.ink, o.family);
+      doc.text(ln, x, y + h * 0.72);
+      y += h;
+    });
+    y += (o.after == null ? 2.6 : o.after);
+  }
+
+  function bullets(items, o) {
+    o = o || {};
+    const size = o.size || 10.5, x = o.x || ML, width = o.width || CW, h = lineH(size);
+    (items || []).forEach(function (it) {
+      if (!it) return;
+      const ls = lines(it, size, width - 6);
+      ls.forEach(function (ln, i) {
+        ensure(h);
+        if (i === 0) {
+          doc.setFillColor.apply(doc, o.dot || C.accent);
+          doc.circle(x + 1.3, y + h * 0.5, 0.75, "F");
+        }
+        font("normal", size, o.color || C.ink);
+        doc.text(ln, x + 6, y + h * 0.72);
+        y += h;
+      });
+      y += 1.4;
+    });
+    y += 1.6;
+  }
+
+  function h1(title, opts) {
+    opts = opts || {};
+    if (opts.newPage) { if (y > MT + 1) newPage(); }
+    else if (y > H * 0.62) newPage();
+    else if (y > MT + 1) y += 6;
+    ensure(30);
+    const num = String(toc.length + 1).padStart(2, "0");
+    toc.push({ title: title, page: doc.getCurrentPageInfo().pageNumber, num: num });
+    font("bold", 10, C.mark, "courier");
+    doc.text(num, ML, y + 4);
+    const tl = lines(title, 19, CW, "bold", "times");
+    font("bold", 19, C.ink, "times");
+    let ty = y + 11.5;
+    tl.forEach(function (ln) { doc.text(ln, ML, ty); ty += lineH(19, 1.2); });
+    y = ty - lineH(19, 1.2) + 4;
+    doc.setDrawColor.apply(doc, C.accent);
+    doc.setLineWidth(0.6);
+    doc.line(ML, y, ML + 18, y);
+    doc.setDrawColor.apply(doc, C.line);
+    doc.setLineWidth(0.2);
+    doc.line(ML + 18, y, W - MR, y);
+    y += 7;
+  }
+
+  function h2(title) {
+    y += 2.5;
+    ensure(16);
+    const ls = lines(title, 12, CW, "bold");
+    font("bold", 12, C.accent);
+    ls.forEach(function (ln) { doc.text(ln, ML, y + 4.2); y += lineH(12, 1.3); });
+    y += 1.6;
+  }
+
+  function box(title, items, o) {
+    o = o || {};
+    const pad = 5, size = 10, h = lineH(size), inner = CW - pad * 2;
+    const tl = title ? lines(title, 10.5, inner, "bold") : [];
+    const blocks = (items || []).filter(Boolean).map(function (it) { return lines(it, size, inner - 6); });
+    let total = pad * 2 + tl.length * lineH(10.5) + (tl.length ? 2 : 0);
+    blocks.forEach(function (b) { total += b.length * h + 1.4; });
+    if (total > H - MT - MB) { if (title) h2(title); bullets(items); return; }
+    ensure(total + 2);
+    doc.setFillColor.apply(doc, o.fill || C.tint);
+    doc.roundedRect(ML, y, CW, total, 2, 2, "F");
+    doc.setFillColor.apply(doc, o.bar || C.accent);
+    doc.rect(ML, y, 1.2, total, "F");
+    let by = y + pad;
+    if (tl.length) {
+      font("bold", 10.5, o.bar || C.accent);
+      tl.forEach(function (ln) { doc.text(ln, ML + pad, by + lineH(10.5) * 0.72); by += lineH(10.5); });
+      by += 2;
+    }
+    blocks.forEach(function (b) {
+      b.forEach(function (ln, i) {
+        if (i === 0) { doc.setFillColor.apply(doc, o.bar || C.accent); doc.circle(ML + pad + 1.3, by + h * 0.5, 0.7, "F"); }
+        font("normal", size, C.ink);
+        doc.text(ln, ML + pad + 6, by + h * 0.72);
+        by += h;
+      });
+      by += 1.4;
+    });
+    y += total + 5;
+  }
+
+  function keep(text) {
+    if (!text) return;
+    const size = 10.5, h = lineH(size), ls = lines(text, size, CW - 8, "italic");
+    const total = ls.length * h + 6;
+    ensure(total + 2);
+    doc.setFillColor.apply(doc, C.mark);
+    doc.rect(ML, y, 1.2, total, "F");
+    font("bold", 7.5, C.mark);
+    doc.text("À RETENIR", ML + 5, y + 3.2);
+    let by = y + 4.5;
+    ls.forEach(function (ln) { font("italic", size, C.ink); doc.text(ln, ML + 5, by + h * 0.72); by += h; });
+    y += total + 5;
+  }
+
+  function table(cols, rows) {
+    const size = 9.5, h = lineH(size, 1.35), pad = 2.4;
+    const totalW = cols.reduce(function (a, c) { return a + c.w; }, 0);
+    const ws = cols.map(function (c) { return c.w / totalW * CW; });
+    function header() {
+      ensure(10 + h);
+      doc.setFillColor.apply(doc, C.accent);
+      doc.rect(ML, y, CW, 7.5, "F");
+      let x = ML;
+      cols.forEach(function (c, i) {
+        font("bold", 8.5, C.white);
+        doc.text(S(c.label).toUpperCase(), x + pad, y + 5);
+        x += ws[i];
+      });
+      y += 7.5;
+    }
+    header();
+    rows.forEach(function (r, ri) {
+      const cells = cols.map(function (c, i) {
+        const v = r[c.key];
+        if (c.badge) return { badge: S(v || "") , ls: [S(v || "")] };
+        const parts = Array.isArray(v) ? v : [v];
+        let ls = [];
+        parts.forEach(function (p, pi) {
+          if (!p) return;
+          const st = (pi === 0 && c.boldFirst) ? "bold" : "normal";
+          lines(p, size, ws[i] - pad * 2, st).forEach(function (l) { ls.push({ t: l, st: st, muted: pi > 0 && c.boldFirst }); });
+        });
+        return { ls: ls };
+      });
+      const rowH = Math.max.apply(null, cells.map(function (c) { return c.ls.length; })) * h + pad * 2;
+      if (y + rowH > H - MB) { newPage(); header(); }
+      if (ri % 2 === 1) { doc.setFillColor(245, 248, 251); doc.rect(ML, y, CW, rowH, "F"); }
+      let x = ML;
+      cells.forEach(function (cell, i) {
+        if (cell.badge !== undefined) {
+          const key = cell.badge.toLowerCase();
+          const col = C[key] || C.muted;
+          font("bold", 8.5, col);
+          doc.text(cell.badge, x + pad, y + pad + h * 0.72);
+        } else {
+          let cy = y + pad;
+          cell.ls.forEach(function (l) {
+            font(l.st, size, l.muted ? C.muted : C.ink);
+            doc.text(l.t, x + pad, cy + h * 0.72);
+            cy += h;
+          });
+        }
+        x += ws[i];
+      });
+      doc.setDrawColor.apply(doc, C.line);
+      doc.setLineWidth(0.2);
+      doc.line(ML, y + rowH, W - MR, y + rowH);
+      y += rowH;
+    });
+    y += 6;
+  }
+
+  /* ---------- Page de garde ---------- */
+  const tlPre = lines(R.titre || "Rapport de veille", 27, CW, "bold", "times").slice(0, 4);
+  const slPre = R.sous_titre ? lines(R.sous_titre, 13, CW, "normal").slice(0, 4) : [];
+  const bandH = Math.max(96, 50 + tlPre.length * lineH(27, 1.18) + slPre.length * lineH(13, 1.35) + 18);
+  doc.setFillColor.apply(doc, C.accent);
+  doc.rect(0, 0, W, bandH, "F");
+  doc.setFillColor.apply(doc, C.mark);
+  doc.rect(ML, 34, 14, 1.4, "F");
+  font("bold", 9, C.pale);
+  doc.setCharSpace(0.9);
+  doc.text("RAPPORT DE VEILLE", ML, 30);
+  doc.setCharSpace(0);
+  let cy = 50;
+  const tl = lines(R.titre || "Rapport de veille", 27, CW, "bold", "times");
+  font("bold", 27, C.white, "times");
+  tl.slice(0, 4).forEach(function (ln) { doc.text(ln, ML, cy); cy += lineH(27, 1.18); });
+  if (R.sous_titre) {
+    cy += 2;
+    const sl = lines(R.sous_titre, 13, CW, "normal");
+    font("normal", 13, C.pale);
+    sl.slice(0, 4).forEach(function (ln) { doc.text(ln, ML, cy); cy += lineH(13, 1.35); });
+  }
+  y = bandH + 18;
+  const meta = [
+    ["Thème", M.theme || "-"],
+    ["Date", M.dateLabel],
+    ["Auteur(s)", M.author || "-"],
+    ["Destinataires", M.audienceLabel],
+    ["Niveau de détail", M.levelLabel]
+  ];
+  meta.forEach(function (m) {
+    font("bold", 8, C.muted);
+    doc.text(S(m[0]).toUpperCase(), ML, y);
+    const vl = lines(m[1], 11, CW - 45);
+    font("normal", 11, C.ink);
+    vl.forEach(function (ln, i) { doc.text(ln, ML + 45, y + i * lineH(11)); });
+    y += Math.max(1, vl.length) * lineH(11) + 4;
+    doc.setDrawColor.apply(doc, C.line); doc.setLineWidth(0.2);
+    doc.line(ML, y - 2.5, W - MR, y - 2.5);
+    y += 2;
+  });
+  if (R.mots_cles && R.mots_cles.length) {
+    y += 4;
+    font("bold", 8, C.muted);
+    doc.text("MOTS-CLÉS", ML, y);
+    y += 4;
+    let kx = ML;
+    R.mots_cles.slice(0, 10).forEach(function (k) {
+      const t = S(k);
+      font("normal", 9, C.accent);
+      const tw = doc.getTextWidth(t) + 6;
+      if (kx + tw > W - MR) { kx = ML; y += 8; }
+      doc.setFillColor.apply(doc, C.tint);
+      doc.roundedRect(kx, y, tw, 6, 1.2, 1.2, "F");
+      doc.text(t, kx + 3, y + 4.1);
+      kx += tw + 3;
+    });
+  }
+  font("normal", 8.5, C.muted);
+  const disc = doc.splitTextToSize(S("Rapport rédigé par Claude à partir d'un résumé de veille et de connaissances générales, sans recherche en ligne. Les chiffres, dates et faits précis listés dans « Points à vérifier » doivent être contrôlés avant diffusion."), CW);
+  doc.text(disc, ML, H - 22);
+
+  /* ---------- Sommaire (réservé) ---------- */
+  doc.addPage();
+  const tocPage = doc.getCurrentPageInfo().pageNumber;
+
+  /* ---------- Contenu ---------- */
+  newPage();
+  h1("Synthèse exécutive");
+  (R.synthese || []).forEach(function (p) { para(p); });
+  if (R.points_cles && R.points_cles.length) box("Points clés", R.points_cles);
+
+  (R.sections || []).forEach(function (sec) {
+    h1(sec.titre, { newPage: true });
+    if (sec.introduction) para(sec.introduction, { size: 11, color: C.muted, style: "italic" });
+    (sec.blocs || []).forEach(function (b) {
+      if (b.sous_titre) h2(b.sous_titre);
+      (b.paragraphes || []).forEach(function (p) { para(p); });
+    });
+    if (sec.encadre && sec.encadre.points && sec.encadre.points.length) box(sec.encadre.titre || "En bref", sec.encadre.points);
+    keep(sec.a_retenir);
+  });
+
+  if (R.acteurs && R.acteurs.length) {
+    h1("Acteurs et parties prenantes", { newPage: true });
+    table([{ key: "nom", label: "Acteur", w: 32 }, { key: "role", label: "Rôle et enjeu", w: 68 }], R.acteurs);
+  }
+  if ((R.risques && R.risques.length) || (R.opportunites && R.opportunites.length)) {
+    h1("Risques et opportunités");
+    if (R.risques && R.risques.length) { h2("Risques"); bullets(R.risques, { dot: C.haute }); }
+    if (R.opportunites && R.opportunites.length) { h2("Opportunités"); bullets(R.opportunites, { dot: C.basse }); }
+  }
+  if (R.recommandations && R.recommandations.length) {
+    h1("Recommandations");
+    table([
+      { key: "n", label: "#", w: 6 },
+      { key: "txt", label: "Action", w: 62, boldFirst: true },
+      { key: "priorite", label: "Priorité", w: 14, badge: true },
+      { key: "horizon", label: "Horizon", w: 18 }
+    ], R.recommandations.map(function (r, i) {
+      return { n: String(i + 1), txt: [r.action, r.justification], priorite: r.priorite, horizon: r.horizon };
+    }));
+  }
+  if ((R.questions_ouvertes && R.questions_ouvertes.length) || (R.points_a_verifier && R.points_a_verifier.length)) {
+    h1("Questions ouvertes et points à vérifier");
+    if (R.questions_ouvertes && R.questions_ouvertes.length) { h2("Questions ouvertes"); bullets(R.questions_ouvertes); }
+    if (R.points_a_verifier && R.points_a_verifier.length) box("Points à vérifier avant diffusion", R.points_a_verifier, { bar: C.mark, fill: [249, 241, 230] });
+  }
+  if (R.glossaire && R.glossaire.length) {
+    h1("Glossaire");
+    table([{ key: "terme", label: "Terme", w: 28 }, { key: "definition", label: "Définition", w: 72 }], R.glossaire);
+  }
+  if (R.conclusion && R.conclusion.length) {
+    h1("Conclusion");
+    R.conclusion.forEach(function (p) { para(p); });
+  }
+  h1("Annexe : résumé source", { newPage: true });
+  para("Texte saisi dans l'atelier de veille, reproduit tel quel.", { size: 9.5, color: C.muted, style: "italic" });
+  String(M.summary || "").split(/\n/).forEach(function (l) {
+    if (l.trim() === "") { y += 2; return; }
+    para(l, { size: 9.8, after: 0.6 });
+  });
+
+  /* ---------- Sommaire ---------- */
+  doc.setPage(tocPage);
+  y = MT;
+  font("bold", 10, C.mark, "courier");
+  doc.text("SOMMAIRE", ML, y + 4);
+  font("bold", 22, C.ink, "times");
+  doc.text(S(R.titre_court || "Contenu du rapport"), ML, y + 14);
+  y += 26;
+  toc.forEach(function (t) {
+    const tls = lines(t.title, 11.5, CW - 28);
+    font("bold", 9.5, C.mark, "courier");
+    doc.text(t.num, ML, y + 4.2);
+    font("normal", 11.5, C.ink);
+    tls.forEach(function (ln, i) { doc.text(ln, ML + 12, y + 4.2 + i * lineH(11.5)); });
+    const lastY = y + 4.2 + (tls.length - 1) * lineH(11.5);
+    const lastW = doc.getTextWidth(tls[tls.length - 1]);
+    const pg = String(t.page);
+    font("bold", 11.5, C.accent);
+    const pw = doc.getTextWidth(pg);
+    doc.text(pg, W - MR - pw, lastY);
+    doc.setDrawColor.apply(doc, C.line);
+    doc.setLineWidth(0.35);
+    doc.setLineDashPattern([0.4, 1.4], 0);
+    const x1 = ML + 12 + lastW + 2, x2 = W - MR - pw - 2;
+    if (x2 > x1) doc.line(x1, lastY - 0.6, x2, lastY - 0.6);
+    doc.setLineDashPattern([], 0);
+    y += tls.length * lineH(11.5) + 4.2;
+  });
+
+  /* ---------- En-têtes et pieds de page ---------- */
+  const n = doc.getNumberOfPages();
+  const shortTitle = doc.splitTextToSize(S(R.titre || "Rapport de veille"), CW - 50)[0];
+  for (let i = 2; i <= n; i++) {
+    doc.setPage(i);
+    font("normal", 8, C.muted);
+    doc.text(shortTitle, ML, 14);
+    doc.text("Rapport de veille", W - MR, 14, { align: "right" });
+    doc.setDrawColor.apply(doc, C.line); doc.setLineWidth(0.2);
+    doc.line(ML, 16.5, W - MR, 16.5);
+    doc.line(ML, H - 15, W - MR, H - 15);
+    doc.text(S(M.dateLabel), ML, H - 10);
+    font("bold", 8, C.accent);
+    doc.text(i + " / " + n, W - MR, H - 10, { align: "right" });
+  }
+  return doc;
+}
+if (typeof module !== "undefined") module.exports = { buildReportPdf: buildReportPdf, pdfSanitize: pdfSanitize };
+</script>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const LEVELS = {
+    standard: { label: "Standard", sections: 4, words: "350 à 450" },
+    approfondi: { label: "Approfondi", sections: 6, words: "450 à 600" },
+    complet: { label: "Très complet", sections: 8, words: "600 à 800" }
+  };
+  const AUDIENCES = {
+    direction: { label: "Direction", brief: "un comité de direction : mets l'accent sur les enjeux, les décisions à prendre, les impacts économiques et organisationnels, avec un vocabulaire clair" },
+    technique: { label: "Équipe technique", brief: "une équipe technique ou d'experts : détaille les mécanismes, les aspects techniques, les conditions de mise en œuvre, avec un vocabulaire précis" },
+    general: { label: "Tous publics", brief: "un public large : sois pédagogique, explique les notions, donne des exemples concrets et des comparaisons" }
+  };
+  const EXAMPLE = {
+    title: "",
+    theme: "Énergie et mobilité",
+    author: "",
+    summary:
+"Veille batteries sodium-ion, semaine 45\n\n" +
+"- Plusieurs fabricants asiatiques annoncent une montée en cadence de la production de cellules sodium-ion, d'abord pour le stockage stationnaire et les petits véhicules urbains.\n" +
+"- Argument principal : pas de lithium ni de cobalt, matières premières plus abondantes, meilleure tenue au froid.\n" +
+"- Limite : densité énergétique encore inférieure au LFP, donc autonomie plus faible.\n" +
+"- Des constructeurs testent des packs hybrides sodium + lithium.\n" +
+"- En Europe, quelques start-up visent une usine pilote, financement encore incertain.\n" +
+"- À suivre pour nous : coût au kWh, disponibilité des fournisseurs, intérêt pour nos projets de stockage sur site."
+  };
+
+  const el = {
+    title: $("fTitle"), theme: $("fTheme"), author: $("fAuthor"), audience: $("fAudience"), summary: $("fSummary"),
+    wordCount: $("wordCount"), exampleChip: $("exampleChip"), clearBtn: $("clearBtn"),
+    genBtn: $("genBtn"), cancelBtn: $("cancelBtn"), inputMsg: $("inputMsg"), outputMsg: $("outputMsg"),
+    statusChip: $("statusChip"), stateEmpty: $("stateEmpty"), stateBusy: $("stateBusy"), stateReady: $("stateReady"),
+    stepsList: $("stepsList"), barFill: $("barFill"),
+    fileName: $("fileName"), fileMeta: $("fileMeta"), stPages: $("stPages"), stWords: $("stWords"), stRatio: $("stRatio"),
+    dlBtn: $("dlBtn"), openBtn: $("openBtn"), modelInfo: $("modelInfo"), regenBtn: $("regenBtn"), dlMsg: $("dlMsg"), previewDoc: $("previewDoc")
+  };
+
+  let controller = null, pdfUrl = null;
+  let current = null; // { report, meta, pdfBlob, filename }
+  let isExample = false;
+
+  /* ---------- Brouillon local ---------- */
+  const KEY = "atelier-veille-brouillon-v1";
+  function saveDraft() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify({
+        title: el.title.value, theme: el.theme.value, author: el.author.value,
+        audience: el.audience.value, level: level(), summary: el.summary.value
+      }));
+    } catch (e) { /* stockage indisponible */ }
+  }
+  function loadDraft() {
+    try { const d = JSON.parse(localStorage.getItem(KEY) || "null"); return d && d.summary ? d : null; } catch (e) { return null; }
+  }
+  function level() { const c = document.querySelector('input[name="level"]:checked'); return c ? c.value : "approfondi"; }
+  function countWords(t) { const m = String(t).trim().match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu); return m ? m.length : 0; }
+  function updateCount() { const n = countWords(el.summary.value); el.wordCount.textContent = n + (n > 1 ? " mots" : " mot"); }
+  function setExample(on) { isExample = on; el.exampleChip.classList.toggle("hidden", !on); }
+
+  const draft = loadDraft();
+  if (draft) {
+    el.title.value = draft.title || ""; el.theme.value = draft.theme || ""; el.author.value = draft.author || "";
+    if (AUDIENCES[draft.audience]) el.audience.value = draft.audience;
+    if (LEVELS[draft.level]) document.getElementById("lv-" + draft.level).checked = true;
+    el.summary.value = draft.summary;
+    setExample(false);
+  } else {
+    el.theme.value = EXAMPLE.theme; el.summary.value = EXAMPLE.summary; setExample(true);
+  }
+  updateCount();
+
+  ["input", "change"].forEach((ev) => {
+    document.querySelector(".fields").addEventListener(ev, () => {
+      if (isExample && ev === "input") setExample(false);
+      updateCount(); saveDraft();
+    });
+  });
+  el.clearBtn.addEventListener("click", () => {
+    el.title.value = ""; el.theme.value = ""; el.summary.value = ""; setExample(false); updateCount(); saveDraft(); el.summary.focus();
+  });
+
+  /* ---------- Capacités ---------- */
+  function showMsg(node, text, kind) {
+    node.textContent = text; node.classList.remove("hidden");
+    node.classList.toggle("error", kind !== "info");
+  }
+  function hideMsg(node) { node.classList.add("hidden"); node.textContent = ""; }
+
+  let serverReady = false;
+  fetch("/api/status").then((r) => r.json()).then((st) => {
+    serverReady = !!st.ready;
+    el.modelInfo.textContent = st.mock ? "Mode démo (réponses fictives)" : "Modèle : " + st.model;
+    if (!st.ready) showMsg(el.inputMsg, "Aucune clé API configurée : ajoutez ANTHROPIC_API_KEY dans le fichier .env à côté de server.js, puis relancez « node server.js ».");
+  }).catch(() => {
+    showMsg(el.inputMsg, "Le serveur local ne répond pas. Lancez « node server.js » dans le dossier de l'atelier, puis ouvrez http://localhost:3000.");
+  });
+
+  /* ---------- Appels à Claude ---------- */
+  function parseJson(text) {
+    let t = String(text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "");
+    const a = t.indexOf("{"), b = t.lastIndexOf("}");
+    if (a < 0 || b <= a) throw { code: "parse", message: "Réponse illisible" };
+    return JSON.parse(t.slice(a, b + 1));
+  }
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  async function ask(prompt, onWords, opts) {
+    let rateTries = 0, parseTries = 0;
+    for (;;) {
+      try {
+        const resp = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+          signal: controller.signal
+        });
+        if (!resp.ok) {
+          let j = {}; try { j = await resp.json(); } catch (_) {}
+          throw { code: j.code || (resp.status === 429 ? "rate_limited" : "server"), message: j.error || ("Erreur " + resp.status) };
+        }
+        const reader = resp.body.getReader();
+        const dec = new TextDecoder();
+        let text = "";
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          text += dec.decode(value, { stream: true });
+          if (onWords) onWords(countWords(text.replace(/<<<[^>]*>>>/g, "")));
+        }
+        const err = text.match(/<<<ERREUR:([\s\S]*?)>>>/);
+        if (err) throw { code: "server", message: err[1] };
+        if (text.includes("<<<TRONQUE>>>")) throw { code: "truncated", message: "Réponse tronquée" };
+        return parseJson(text);
+      } catch (e) {
+        if (controller.signal.aborted) throw { code: "aborted" };
+        if (e && e.code === "rate_limited" && rateTries < 1) { rateTries++; await wait(12000); continue; }
+        if (e && (e.code === "parse" || e.code === "truncated" || e instanceof SyntaxError) && parseTries < 1) { parseTries++; continue; }
+        throw e;
+      }
+    }
+  }
+
+  const RULES =
+"Règles d'exactitude : tu peux expliquer le contexte, les mécanismes, les enjeux et les implications à partir de connaissances générales solides. " +
+"N'invente aucun chiffre, date, nom d'entreprise, nom de source, citation ou événement précis qui ne figure pas dans le résumé. " +
+"Quand une donnée chiffrée ou un fait précis serait utile, formule-le prudemment dans le texte et signale-le comme élément à vérifier. " +
+"Écris en français soigné, en texte brut : pas de Markdown, pas d'astérisques, pas de titres numérotés dans les paragraphes, pas d'emoji. " +
+"Réponds uniquement avec un objet JSON valide, sans texte avant ni après.";
+
+  function planPrompt(m) {
+    const n = LEVELS[m.level].sections;
+    return (
+"Tu es analyste de veille senior. À partir du résumé de veille ci-dessous, conçois un rapport de veille professionnel, beaucoup plus développé et structuré que le résumé.\n\n" +
+"Destinataires : " + AUDIENCES[m.audience].brief + ".\n" +
+(m.theme ? "Thème : " + m.theme + ".\n" : "") +
+(m.title ? "Titre imposé : « " + m.title + " » (utilise-le tel quel pour le champ titre).\n" : "") +
+"Date du rapport : " + m.dateLabel + ".\n\n" +
+"RÉSUMÉ DE VEILLE :\n<<<\n" + m.summary + "\n>>>\n\n" +
+RULES + "\n\n" +
+"Format JSON attendu :\n" +
+"{\n" +
+'  "titre": "titre du rapport, 4 à 12 mots",\n' +
+'  "titre_court": "3 à 6 mots",\n' +
+'  "sous_titre": "une phrase qui situe le rapport",\n' +
+'  "mots_cles": ["5 à 8 mots-clés"],\n' +
+'  "synthese": ["3 paragraphes de 90 à 130 mots : ce qui se passe, pourquoi c\'est important, ce qu\'il faut faire"],\n' +
+'  "points_cles": ["5 à 7 phrases courtes et denses"],\n' +
+'  "sections": [{"titre": "titre de partie", "angle": "2 phrases sur ce que la partie doit couvrir", "elements": ["4 à 6 éléments précis à développer"]}],\n' +
+'  "acteurs": [{"nom": "acteur ou catégorie d\'acteurs", "role": "rôle et enjeu, 1 à 2 phrases"}],\n' +
+'  "risques": ["4 à 6 risques, une à deux phrases chacun"],\n' +
+'  "opportunites": ["4 à 6 opportunités, une à deux phrases chacune"],\n' +
+'  "recommandations": [{"action": "action concrète", "justification": "1 à 2 phrases", "priorite": "Haute|Moyenne|Basse", "horizon": "Court terme|Moyen terme|Long terme"}],\n' +
+'  "questions_ouvertes": ["4 à 6 questions"],\n' +
+'  "points_a_verifier": ["chaque fait, chiffre ou affirmation du résumé ou du rapport à confirmer, avec la source à consulter"],\n' +
+'  "glossaire": [{"terme": "terme", "definition": "définition en 1 à 2 phrases"}],\n' +
+'  "conclusion": ["2 paragraphes de 80 à 120 mots"]\n' +
+"}\n\n" +
+"Contraintes : exactement " + n + " sections, qui couvrent ensemble le contexte et l'origine du sujet, l'analyse détaillée de chaque point du résumé, les mécanismes ou fonctionnements en jeu, les enjeux et impacts pour les parties prenantes, les scénarios d'évolution. Pas de section « synthèse », « recommandations » ou « conclusion » (déjà prévues ailleurs). 4 à 7 acteurs (uniquement ceux cités dans le résumé, ou des catégories génériques). 4 à 6 recommandations. 5 à 10 termes de glossaire."
+    );
+  }
+
+  function sectionPrompt(m, plan, i) {
+    const sec = plan.sections[i];
+    const outline = plan.sections.map((s, k) => (k + 1) + ". " + s.titre).join("\n");
+    return (
+"Tu es analyste de veille senior. Tu rédiges une partie d'un rapport de veille intitulé « " + plan.titre + " ».\n" +
+"Destinataires : " + AUDIENCES[m.audience].brief + ".\n\n" +
+"RÉSUMÉ DE VEILLE D'ORIGINE :\n<<<\n" + m.summary + "\n>>>\n\n" +
+"PLAN DU RAPPORT :\n" + outline + "\n\n" +
+"PARTIE À RÉDIGER : " + (i + 1) + ". " + sec.titre + "\n" +
+"Angle : " + (sec.angle || "") + "\n" +
+"Éléments à développer :\n- " + (sec.elements || []).join("\n- ") + "\n\n" +
+"Rédige cette partie de façon approfondie, entre " + LEVELS[m.level].words + " mots au total, sans répéter le contenu attendu dans les autres parties du plan. " +
+"Explique, illustre, mets en perspective et tire des implications concrètes.\n\n" +
+RULES + "\n\n" +
+"Format JSON attendu :\n" +
+"{\n" +
+'  "introduction": "2 phrases qui annoncent la partie",\n' +
+'  "blocs": [{"sous_titre": "sous-titre", "paragraphes": ["paragraphes de 70 à 140 mots"]}],\n' +
+'  "encadre": {"titre": "titre court de l\'encadré", "points": ["3 à 5 points synthétiques"]},\n' +
+'  "a_retenir": "une phrase de conclusion de la partie"\n' +
+"}\n" +
+"Contraintes : 2 à 4 blocs, 2 à 3 paragraphes par bloc."
+    );
+  }
+
+  /* ---------- Progression ---------- */
+  let steps = [];
+  function renderSteps() {
+    el.stepsList.innerHTML = "";
+    steps.forEach((s) => {
+      const li = document.createElement("li");
+      li.className = s.state;
+      li.innerHTML = '<span class="dot" aria-hidden="true"></span><span></span><span class="count"></span>';
+      li.children[1].textContent = s.label;
+      li.children[2].textContent = s.words ? s.words + " mots" : (s.state === "done" ? "ok" : "");
+      el.stepsList.appendChild(li);
+    });
+    const done = steps.filter((s) => s.state === "done").length;
+    el.barFill.style.width = Math.round((done / Math.max(1, steps.length)) * 100) + "%";
+  }
+  function setStep(i, patch) { Object.assign(steps[i], patch); renderSteps(); }
+
+  function setState(name) {
+    el.stateEmpty.classList.toggle("hidden", name !== "empty");
+    el.stateBusy.classList.toggle("hidden", name !== "busy");
+    el.stateReady.classList.toggle("hidden", name !== "ready");
+    el.statusChip.className = "chip" + (name === "ready" ? " ready" : name === "busy" ? " busy" : "");
+    el.statusChip.textContent = name === "ready" ? "PDF prêt" : name === "busy" ? "Génération…" : "En attente";
+    el.genBtn.disabled = name === "busy";
+    el.cancelBtn.classList.toggle("hidden", name !== "busy");
+  }
+
+  /* ---------- Génération ---------- */
+  function collectMeta() {
+    const now = new Date();
+    return {
+      title: el.title.value.trim(), theme: el.theme.value.trim(), author: el.author.value.trim(),
+      audience: el.audience.value, audienceLabel: AUDIENCES[el.audience.value].label,
+      level: level(), levelLabel: LEVELS[level()].label,
+      summary: el.summary.value.trim(),
+      date: now,
+      dateLabel: now.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+    };
+  }
+
+  async function generate(fresh) {
+    hideMsg(el.inputMsg); hideMsg(el.outputMsg); hideMsg(el.dlMsg);
+    const m = collectMeta();
+    if (countWords(m.summary) < 15) { showMsg(el.inputMsg, "Le résumé est trop court : écrivez au moins quelques phrases (15 mots minimum) pour que le rapport ait de la matière."); el.summary.focus(); return; }
+    if (!serverReady) { showMsg(el.inputMsg, "Le serveur local n'est pas prêt : vérifiez que « node server.js » tourne et que la clé ANTHROPIC_API_KEY est renseignée dans .env."); return; }
+    if (!window.jspdf || !window.jspdf.jsPDF) { showMsg(el.inputMsg, "La bibliothèque PDF ne s'est pas chargée. Rechargez la page."); return; }
+
+    controller = new AbortController();
+    const n = LEVELS[m.level].sections;
+    steps = [{ label: "Analyse du résumé et plan du rapport", state: "active" }];
+    for (let i = 0; i < n; i++) steps.push({ label: "Rédaction de la partie " + (i + 1), state: "" });
+    steps.push({ label: "Mise en page du PDF", state: "" });
+    setState("busy"); renderSteps();
+
+    let idx = 0;
+    try {
+      const plan = await ask(planPrompt(m), (w) => setStep(0, { words: w }), { fresh });
+      if (!Array.isArray(plan.sections) || !plan.sections.length) throw { code: "parse", message: "Plan vide" };
+      if (m.title) plan.titre = m.title;
+      plan.sections = plan.sections.slice(0, n);
+      setStep(0, { state: "done", label: "Plan : « " + (plan.titre || "rapport") + " »" });
+      plan.sections.forEach((s, i) => { steps[i + 1].label = "Partie " + (i + 1) + " : " + s.titre; });
+      // Si le plan compte moins de parties que prévu, retirer les étapes en trop.
+      steps.splice(1 + plan.sections.length, n - plan.sections.length);
+      renderSteps();
+
+      const developed = [];
+      for (let i = 0; i < plan.sections.length; i++) {
+        idx = i + 1;
+        setStep(idx, { state: "active" });
+        const body = await ask(sectionPrompt(m, plan, i), (w) => setStep(idx, { words: w }), { fresh });
+        developed.push(Object.assign({ titre: plan.sections[i].titre }, body));
+        setStep(idx, { state: "done" });
+      }
+
+      idx = steps.length - 1;
+      setStep(idx, { state: "active" });
+      const report = Object.assign({}, plan, { sections: developed });
+      await wait(30);
+      finish(report, m);
+      setStep(idx, { state: "done" });
+    } catch (e) {
+      if (e && e.code === "aborted") { setState(current ? "ready" : "empty"); showMsg(el.outputMsg, "Génération annulée.", "info"); return; }
+      if (steps[idx]) setStep(idx, { state: "fail" });
+      const code = e && e.code;
+      const msg =
+        code === "server" || code === "api_error" ? (e.message || "Erreur du serveur local.") :
+        code === "rate_limited" ? "Trop de demandes en peu de temps. Patientez une minute puis relancez." :
+        (code === "parse" || code === "truncated" || e instanceof SyntaxError) ? "Claude a renvoyé une réponse incomplète pour cette étape. Relancez la génération : les étapes déjà terminées iront plus vite." :
+        "La génération a échoué (" + ((e && (e.message || e.code)) || "erreur inconnue") + "). Relancez la génération.";
+      showMsg(el.outputMsg, msg);
+      el.genBtn.disabled = false; el.cancelBtn.classList.add("hidden");
+      el.statusChip.className = "chip"; el.statusChip.textContent = "Erreur";
+    } finally {
+      controller = null;
+    }
+  }
+
+  function slug(s) {
+    return String(s || "rapport").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "rapport";
+  }
+
+  function reportWords(R) {
+    let t = [].concat(R.synthese || [], R.points_cles || [], R.risques || [], R.opportunites || [], R.questions_ouvertes || [], R.points_a_verifier || [], R.conclusion || []);
+    (R.sections || []).forEach((s) => {
+      t.push(s.introduction || "", s.a_retenir || "");
+      (s.blocs || []).forEach((b) => { t.push(b.sous_titre || ""); t = t.concat(b.paragraphes || []); });
+      if (s.encadre) t = t.concat(s.encadre.points || []);
+    });
+    (R.acteurs || []).forEach((a) => t.push(a.nom, a.role));
+    (R.recommandations || []).forEach((r) => t.push(r.action, r.justification));
+    (R.glossaire || []).forEach((g) => t.push(g.terme, g.definition));
+    return countWords(t.join(" "));
+  }
+
+  function finish(report, m) {
+    const doc = buildReportPdf(report, m, window.jspdf.jsPDF);
+    const blob = doc.output("blob");
+    const d = m.date;
+    const stamp = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const filename = "rapport-veille-" + slug(report.titre_court || report.titre) + "-" + stamp + ".pdf";
+    current = { report, meta: m, blob, filename };
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    pdfUrl = URL.createObjectURL(blob);
+
+    const words = reportWords(report);
+    const src = Math.max(1, countWords(m.summary));
+    el.fileName.textContent = filename;
+    el.fileMeta.textContent = "A4 · " + Math.max(1, Math.round(blob.size / 1024)) + " Ko · " + m.levelLabel + " · " + m.audienceLabel;
+    el.stPages.textContent = doc.getNumberOfPages();
+    el.stWords.textContent = words.toLocaleString("fr-FR");
+    el.stRatio.textContent = "×" + Math.max(1, Math.round(words / src));
+    renderPreview(report, m);
+    setState("ready");
+  }
+
+  /* ---------- Aperçu HTML ---------- */
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+  function list(items) { return items && items.length ? "<ul>" + items.map((i) => "<li>" + esc(i) + "</li>").join("") + "</ul>" : ""; }
+  function renderPreview(R, m) {
+    let h = "", k = 0;
+    const num = () => String(++k).padStart(2, "0");
+    h += '<div class="cover"><p class="eyebrow">Rapport de veille · ' + esc(m.dateLabel) + "</p>";
+    h += '<h3 class="title">' + esc(R.titre) + "</h3>";
+    if (R.sous_titre) h += '<p class="subtitle">' + esc(R.sous_titre) + "</p>";
+    if (R.mots_cles && R.mots_cles.length) h += '<div class="kw">' + R.mots_cles.map((x) => "<span>" + esc(x) + "</span>").join("") + "</div>";
+    h += "</div>";
+    h += '<h4><span class="num">' + num() + "</span>Synthèse exécutive</h4>";
+    (R.synthese || []).forEach((p) => { h += "<p>" + esc(p) + "</p>"; });
+    if (R.points_cles && R.points_cles.length) h += '<div class="box"><strong>Points clés</strong>' + list(R.points_cles) + "</div>";
+    (R.sections || []).forEach((s) => {
+      h += '<h4><span class="num">' + num() + "</span>" + esc(s.titre) + "</h4>";
+      if (s.introduction) h += '<p style="color:var(--muted);font-style:italic">' + esc(s.introduction) + "</p>";
+      (s.blocs || []).forEach((b) => {
+        if (b.sous_titre) h += "<h5>" + esc(b.sous_titre) + "</h5>";
+        (b.paragraphes || []).forEach((p) => { h += "<p>" + esc(p) + "</p>"; });
+      });
+      if (s.encadre && s.encadre.points && s.encadre.points.length) h += '<div class="box"><strong>' + esc(s.encadre.titre || "En bref") + "</strong>" + list(s.encadre.points) + "</div>";
+      if (s.a_retenir) h += '<p class="keep">' + esc(s.a_retenir) + "</p>";
+    });
+    if (R.acteurs && R.acteurs.length) {
+      h += '<h4><span class="num">' + num() + "</span>Acteurs et parties prenantes</h4><table><thead><tr><th>Acteur</th><th>Rôle et enjeu</th></tr></thead><tbody>";
+      R.acteurs.forEach((a) => { h += "<tr><td><strong>" + esc(a.nom) + "</strong></td><td>" + esc(a.role) + "</td></tr>"; });
+      h += "</tbody></table>";
+    }
+    if ((R.risques || []).length || (R.opportunites || []).length) {
+      h += '<h4><span class="num">' + num() + "</span>Risques et opportunités</h4>";
+      if ((R.risques || []).length) h += "<h5>Risques</h5>" + list(R.risques);
+      if ((R.opportunites || []).length) h += "<h5>Opportunités</h5>" + list(R.opportunites);
+    }
+    if (R.recommandations && R.recommandations.length) {
+      h += '<h4><span class="num">' + num() + "</span>Recommandations</h4><table><thead><tr><th>Action</th><th>Priorité</th><th>Horizon</th></tr></thead><tbody>";
+      R.recommandations.forEach((r) => {
+        const p = String(r.priorite || "").toLowerCase();
+        h += "<tr><td><strong>" + esc(r.action) + "</strong><br><span style=\"color:var(--muted)\">" + esc(r.justification) + "</span></td><td><span class=\"prio " + esc(p) + "\">" + esc(r.priorite) + "</span></td><td>" + esc(r.horizon) + "</td></tr>";
+      });
+      h += "</tbody></table>";
+    }
+    if ((R.questions_ouvertes || []).length || (R.points_a_verifier || []).length) {
+      h += '<h4><span class="num">' + num() + "</span>Questions ouvertes et points à vérifier</h4>";
+      if ((R.questions_ouvertes || []).length) h += "<h5>Questions ouvertes</h5>" + list(R.questions_ouvertes);
+      if ((R.points_a_verifier || []).length) h += '<div class="box" style="background:color-mix(in srgb, var(--mark) 12%, transparent)"><strong style="color:var(--mark)">Points à vérifier avant diffusion</strong>' + list(R.points_a_verifier) + "</div>";
+    }
+    if (R.glossaire && R.glossaire.length) {
+      h += '<h4><span class="num">' + num() + "</span>Glossaire</h4><table><tbody>";
+      R.glossaire.forEach((g) => { h += "<tr><td><strong>" + esc(g.terme) + "</strong></td><td>" + esc(g.definition) + "</td></tr>"; });
+      h += "</tbody></table>";
+    }
+    if (R.conclusion && R.conclusion.length) {
+      h += '<h4><span class="num">' + num() + "</span>Conclusion</h4>";
+      R.conclusion.forEach((p) => { h += "<p>" + esc(p) + "</p>"; });
+    }
+    h += '<h4><span class="num">' + num() + "</span>Annexe : résumé source</h4><div class=\"src\">" + esc(m.summary) + "</div>";
+    el.previewDoc.innerHTML = h;
+  }
+
+  /* ---------- Téléchargement ---------- */
+  function download() {
+    hideMsg(el.dlMsg);
+    if (!current || !pdfUrl) return;
+    const a = document.createElement("a");
+    a.href = pdfUrl; a.download = current.filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    showMsg(el.dlMsg, "PDF téléchargé : " + current.filename + " (dossier Téléchargements de votre navigateur).", "info");
+  }
+  function openPdf() { if (pdfUrl) window.open(pdfUrl, "_blank", "noopener"); }
+
+  el.genBtn.addEventListener("click", () => generate(false));
+  el.regenBtn.addEventListener("click", () => generate(true));
+  el.cancelBtn.addEventListener("click", () => { if (controller) controller.abort(); });
+  el.dlBtn.addEventListener("click", download);
+  el.openBtn.addEventListener("click", openPdf);
+  setState("empty");
+})();
+</script>
+</body>
+</html>
