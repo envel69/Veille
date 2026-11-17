@@ -1,0 +1,17 @@
+{
+  "name": "atelier-veille",
+  "version": "0.2.0",
+  "description": "Transforme un résumé de veille en rapport PDF détaillé rédigé par Claude.",
+  "private": true,
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "demo": "node src/server.js --mock",
+    "test": "node --test"
+  }
+}
