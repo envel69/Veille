@@ -2,3 +2,5 @@
 .git
 *.zip
 node_modules
+test
+data
