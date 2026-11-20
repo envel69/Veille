@@ -1,17 +1,30 @@
 {
   "name": "atelier-veille",
-  "version": "0.2.0",
-  "description": "Transforme un résumé de veille en rapport PDF détaillé rédigé par Claude.",
+  "version": "0.3.0",
+  "description": "Transforme un résumé de veille en rapport PDF détaillé rédigé par Claude (interface Vue.js).",
   "private": true,
   "type": "module",
   "main": "src/server.js",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "scripts": {
+    "build": "vite build",
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "dev:client": "vite",
     "demo": "node src/server.js --mock",
     "test": "node --test"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.9.0"
+  },
+  "devDependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@vitejs/plugin-vue": "^6.0.11",
+    "jspdf": "^4.2.1",
+    "vite": "^8.3.8",
+    "vue": "^3.5.46"
   }
 }

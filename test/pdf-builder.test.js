@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { pdfSanitize, buildReportPdf } from "../public/js/pdf-builder.js";
+import { pdfSanitize, buildReportPdf } from "../shared/pdf-builder.js";
 import { mockPlan, mockSection } from "../src/services/mock.js";
 
 test("pdfSanitize remplace les caractères non pris en charge par la police PDF", () => {

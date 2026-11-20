@@ -1,4 +1,6 @@
-// Mode démo (MOCK=1 ou --mock) : réponses fictives, pour tester la mise en page sans clé API.
+// Mode démo (MOCK=1 ou --mock) : imite le service Claude avec des réponses fictives,
+// pour tester l'interface et la mise en page sans clé API ni coût.
+import { GenerationError } from "./claude.js";
 
 const P = "Paragraphe de démonstration. Ce texte remplace la rédaction de Claude lorsque le serveur tourne en mode démo, afin de vérifier la mise en page du PDF sans clé API. Il est volontairement assez long pour occuper plusieurs lignes dans le document final.";
 
@@ -34,15 +36,37 @@ export function mockSection() {
   };
 }
 
-/** Envoie l'objet en petits morceaux pour simuler le streaming. */
-export function streamMock(obj, res, delayMs = 15) {
-  const text = JSON.stringify(obj, null, 1);
-  res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-cache" });
-  let i = 0;
-  const t = setInterval(() => {
-    res.write(text.slice(i, i + 120));
-    i += 120;
-    if (i >= text.length) { clearInterval(t); res.end(); }
-  }, delayMs);
-  res.on("close", () => clearInterval(t));
+/**
+ * @param opts.delayMs   délai entre deux fragments (simule le streaming)
+ * @param opts.failOnce  numéros de parties (1, 2…) qui échouent à leur première tentative
+ */
+export function createMockClaude({ delayMs = 15, failOnce = [] } = {}) {
+  const pendingFailures = new Set(failOnce);
+  let warm = false; // simule le cache : écrit à la première requête, relu ensuite
+
+  async function generateJson(req, { signal, onText } = {}) {
+    const isPlan = req.tail.startsWith("TÂCHE : conçois");
+    const part = Number((req.tail.match(/rédige la partie (\d+)/) || [])[1]);
+    const n = Number((req.tail.match(/exactement (\d+) sections/) || [])[1] || 4);
+    const obj = isPlan ? mockPlan(n) : mockSection();
+    const text = JSON.stringify(obj, null, 1);
+
+    for (let i = 0; i < text.length; i += 120) {
+      if (signal?.aborted) throw new GenerationError("aborted", "Annulé");
+      await new Promise((r) => setTimeout(r, delayMs));
+      onText?.(text.slice(0, i + 120));
+      if (!isPlan && pendingFailures.has(part) && i > text.length / 2) {
+        pendingFailures.delete(part);
+        throw new GenerationError("api_error", "Erreur simulée sur la partie " + part + " (mode démo).");
+      }
+    }
+    const prefix = 900 + req.cached.join("").length / 4;
+    const usage = warm
+      ? { input_tokens: 150, cache_read_input_tokens: Math.round(prefix), cache_creation_input_tokens: 0, output_tokens: Math.round(text.length / 4) }
+      : { input_tokens: 150, cache_read_input_tokens: 0, cache_creation_input_tokens: Math.round(prefix), output_tokens: Math.round(text.length / 4) };
+    warm = true;
+    return { data: obj, usage };
+  }
+
+  return { generateJson };
 }
